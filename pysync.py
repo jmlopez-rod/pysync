@@ -9,7 +9,9 @@
 #  rsync: http://rsync.samba.org/
 #
 #  Version 0.0.1 - November 12, 2012
-#  Written by Manuel Lopez,  
+#          0.0.2 - November 13, 2012 - Found bug when checking directories 
+#                                      in the incoming list.
+#  Written by Manuel Lopez
 ##############################################################################
 
 try:
@@ -211,8 +213,11 @@ def sync(index):
             else:
                 print num+CC(in_file[0])+' has not been modified'
         else:
-            print num+CC(in_file[0])+YC(' may be excluded.')
-            exclude.write(in_file[0]+'\n')
+            if in_file[0][-1] != '/':
+                print num+CC(in_file[0])+YC(' may be excluded.')
+                exclude.write(in_file[0]+'\n')
+            else:
+                print num+CC(in_file[0])+' has been modified.'
     exclude.close()
     # To find lines common to two files
     # http://www.unix.com/shell-programming-scripting/144741-simple-script-find-common-strings-two-files.html
