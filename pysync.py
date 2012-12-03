@@ -97,6 +97,9 @@ def register(local, remote, name):
         local += '/'
     if not os.path.isdir(remote):
         tmp = remote.split(':')
+        if len(tmp) == 1:
+            error('The remote path you provided does not exist')
+            exit(1)
         exit_code = os.system("ssh %s 'cd %s'" % (tmp[0], tmp[1]))
         if exit_code != 0:
             error('SSH returned error code: %d. Verify hostname and remote directory.' % exit_code)
@@ -179,10 +182,7 @@ def sync(index):
     p = Popen(command.split(), stdout=PIPE)
     out, err = p.communicate()
     tempfiles = out.split('\n')
-    if tempfiles[1] != '' and tempfiles[1][0]=='.':
-        tempfiles = tempfiles[2:-4]
-    else:
-        tempfiles = tempfiles[1:-4]
+    tempfiles = tempfiles[1:-4]
     incoming = list()
     remote_missing = list()
     for s in tempfiles:
@@ -212,12 +212,11 @@ def sync(index):
                     print num+CC(in_file[0])+RC(' has been modified locally')
             else:
                 print num+CC(in_file[0])+' has not been modified'
-        else:
-            if in_file[0][-1] != '/':
-                print num+CC(in_file[0])+YC(' may be excluded.')
-                exclude.write(in_file[0]+'\n')
-            else:
-                print num+CC(in_file[0])+' has been modified.'
+        elif os.path.isdir(local+in_file[0]):
+            print num+CC(in_file[0])+' is an existing directory.'
+        else: 
+            print num+CC(in_file[0])+YC(' may be excluded')
+            exclude.write(in_file[0]+'\n')
     exclude.close()
     # To find lines common to two files
     # http://www.unix.com/shell-programming-scripting/144741-simple-script-find-common-strings-two-files.html
