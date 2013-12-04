@@ -1,7 +1,7 @@
 #!/usr/bin/python
 #
 #  pysync.py
-#  
+#
 #  Description: pysync is a script to sync folders using rsync. For info
 #  on how pysync is used visit the pysync website.
 #
@@ -9,8 +9,14 @@
 #  rsync: http://rsync.samba.org/
 #
 #  Version 0.0.1 - November 12, 2012
-#          0.0.2 - November 13, 2012 - Found bug when checking directories 
+#          0.0.2 - November 13, 2012 - Found bug when checking directories
 #                                      in the incoming list.
+#          0.0.3 - December 4, 2013 - Got rid of some extra spaces. 
+#                                     The code needs a lot of work,
+#                                     As of now pylint gives pysync a
+#                                     score of 5.66/10.
+#
+#  License: http://creativecommons.org/licenses/by-sa/3.0/
 #  Written by Manuel Lopez
 ##############################################################################
 
@@ -22,7 +28,7 @@ import os
 import time
 import socket
 import optparse
-from datetime import datetime 
+from datetime import datetime
 from subprocess import Popen, PIPE
 
 ##############################################################################
@@ -83,7 +89,7 @@ def load_pysync():
     FILE = open('%s/.pysync/pysync' % HOME, 'r')
     PYSYNC = pickle.load(FILE)
     FILE.close()
-    
+
 ##############################################################################
 # FUNCTIONS
 ##############################################################################
@@ -102,15 +108,19 @@ def register(local, remote, name):
             exit(1)
         exit_code = os.system("ssh %s 'cd %s'" % (tmp[0], tmp[1]))
         if exit_code != 0:
-            error('SSH returned error code: %d. Verify hostname and remote directory.' % exit_code)
+            msg = 'SSH returned error code: %d. ' \
+                  'Verify hostname and remote directory.' % exit_code
+            error(msg)
             exit(exit_code)
     if remote[-1] != '/':
         remote += '/'
     PYSYNC.append([name, local, remote, datetime(1,1,1)])
     store_pysync()
     open('%s/.pysync/%d.txt' % (HOME, len(PYSYNC)-1), 'w').close()
-    print BC('Registration successful. Run "pysync.py -s %d" to sync your entry.' % (len(PYSYNC)-1))
-    exit(0)    
+    msg = 'Registration successful. Run "pysync.py -s %d" to ' \
+          'sync your entry.' % (len(PYSYNC)-1)
+    print BC(msg)
+    exit(0)
 
 def unregister(num):
     global PYSYNC
@@ -129,7 +139,7 @@ def unregister(num):
                 os.rename('%s/.pysync/%d.txt' % (HOME, num+1), '%s/.pysync/%d.txt' % (HOME, num))
                 num += 1
         elif choice in ['no', 'n']:
-           pass
+            pass
         else:
             error("Please respond with 'yes' or 'no'")
         exit(0)
@@ -142,21 +152,23 @@ def reset_sync_date(num):
     no = set(['no','n'])
     if num > -1 and num < len(PYSYNC):
         v = PYSYNC[num]
-        print YC('Are you sure you want to reset the last sync date for this entry:')
+        msg = 'Are you sure you want to reset the ' \
+              'last sync date for this entry:'
+        print YC(msg)
         print_pair(num)
         choice = raw_input(BD("[yes/no] => ")).lower()
         if choice in ['yes', 'y']:
-            PYSYNC[num][3] = datetime(1,1,1)
+            PYSYNC[num][3] = datetime(1, 1, 1)
             store_pysync()
             open('%s/.pysync/%d.txt' % (HOME, num), 'w').close()
         elif choice in ['no', 'n']:
-           pass
+            pass
         else:
             error("Please respond with 'yes' or 'no'")
         exit(0)
     error('Invalid pair number')
     exit(1)
-    
+
 def lock():
     print 'not implemented yet'
 #  Read http://docs.python.org/2/library/stat.html#stat.S_IRUSR
@@ -164,7 +176,7 @@ def lock():
 #  >>> st = os.stat('instructions.txt')
 #  Change them so that everone only has read access
 #  >>> os.chmod('/Users/jmlopez/instructions.txt', stat.S_IRUSR | stat.S_IWUSR | stat.S_IRGRP | stat.S_IROTH)
-#  After upload change back. 
+#  After upload change back.
 #  >>> os.chmod('/Users/jmlopez/instructions.txt', st.st_mode)
 
 
@@ -175,7 +187,7 @@ def sync(index):
     remote = PYSYNC[index][2]
     sync_date = PYSYNC[index][3]
     print_pair(index)
-    
+
     print BBC('STATUS: ')+BC('Receiving list of incoming files...')
     inputs = '%s %s' % (remote, local)
     command = "rsync -navz --delete --exclude .DS_Store --out-format=%n<>%M "+inputs
@@ -196,7 +208,7 @@ def sync(index):
     # INCOMING: Checking for overwriting
     ##########################################################################
     if incoming:
-        print BBC('STATUS: ')+BC('Analysing ')+BBC('%d' % len(incoming))+BC(' files to avoid erroneous overwriting...')      
+        print BBC('STATUS: ')+BC('Analysing ')+BBC('%d' % len(incoming))+BC(' files to avoid erroneous overwriting...')
     exclude = open('%s/.pysync/tmp.txt' % HOME , 'w')
     for in_index, in_file in enumerate(incoming):
         num = ('[%d/' % (in_index+1))+BC('%d' % len(incoming))+"]: "
@@ -214,7 +226,7 @@ def sync(index):
                 print num+CC(in_file[0])+' has not been modified'
         elif os.path.isdir(local+in_file[0]):
             print num+CC(in_file[0])+' is an existing directory.'
-        else: 
+        else:
             print num+CC(in_file[0])+YC(' may be excluded')
             exclude.write(in_file[0]+'\n')
     exclude.close()
@@ -227,7 +239,7 @@ def sync(index):
     # REMOTE_MISSING: Avoiding local deletion
     ##########################################################################
     if remote_missing:
-        print BBC('STATUS: ')+BC('Analysing ')+BBC('%d' % len(remote_missing))+BC(' local files to avoid erroneous removal...')  
+        print BBC('STATUS: ')+BC('Analysing ')+BBC('%d' % len(remote_missing))+BC(' local files to avoid erroneous removal...')
     exclude = open('%s/.pysync/tmp.txt' % HOME , 'w')
     for i, f in enumerate(remote_missing):
         num = ('[%d/' % (i+1))+BC('%d' % len(remote_missing))+"]: "
@@ -243,7 +255,7 @@ def sync(index):
     exclude.close()
     command = 'grep -Fxf %s/.pysync/tmp.txt %s/.pysync/%d.txt > %s/.pysync/remove.txt' % (HOME, HOME, index, HOME)
     exit_code = os.system(command)
-    
+
     ##########################################################################
     # RSYNC: REMOTE TO LOCAL
     ##########################################################################
@@ -254,15 +266,15 @@ def sync(index):
     if exit_code != 0:
         error('rsync returned error code: %d' % exit_code)
         exit(exit_code)
-    
+
     ##########################################################################
     # CLEANING LOCAL DIRECTORY
-    ##########################################################################     
+    ##########################################################################
     FILE = open('%s/.pysync/remove.txt' % HOME, 'r')
     lines = FILE.readlines()
     FILE.close
     if lines:
-        print BBC('STATUS: ')+BC(' Deleting %d files/directories...' % len(lines)) 
+        print BBC('STATUS: ')+BC(' Deleting %d files/directories...' % len(lines))
     for f in reversed(lines):
         fn = local+f[0:-1]
         if fn[-1] == '/':
@@ -277,8 +289,8 @@ def sync(index):
                 print CC(fn)+' has been deleted'
             except OSError:
                 print RC('Unable to delete ')+CC(fn)
-    FILE.close()  
-    
+    FILE.close()
+
     ##########################################################################
     # RSYNC: LOCAL TO REMOTE
     ##########################################################################
@@ -289,7 +301,7 @@ def sync(index):
     if exit_code != 0:
         error('rsync returned error code: %d' % exit_code)
         exit(exit_code)
-    
+
     ##########################################################################
     # RECORDING SYNC
     ##########################################################################
@@ -303,13 +315,13 @@ def sync(index):
     list_contents = 'find . -type d -exec sh -c \'printf "%%s/\n" "$0"\' {} \; -or -print'
     # Need to delete ./ from the path:
     #  http://stackoverflow.com/a/1571652/788553
-    remove_relative = ' | sed s:"./":: > %s/.pysync/%d.txt' 
+    remove_relative = ' | sed s:"./":: > %s/.pysync/%d.txt'
     command = (change_dir+list_contents+remove_relative) % (local, HOME, index)
     exit_code = os.system(command)
     #os.remove('%s/.pysync/tmp.txt' % HOME)
     #os.remove('%s/.pysync/exclude.txt' % HOME)
     #os.remove('%s/.pysync/remove.txt' % HOME)
-    
+
 def sync_pair(arg):
     global PYSYNC
     if arg.isdigit():
@@ -333,7 +345,7 @@ def sync_all():
     global PYSYNC
     if PYSYNC:
         for i,v in enumerate(PYSYNC):
-             sync(i)
+            sync(i)
         print BBC('PYSYNC is DONE')
     else:
         warning('There is nothing to sync. See pysync.py -h')
@@ -344,7 +356,7 @@ def sync_all():
 ##############################################################################
 if not os.path.isdir('%s/.pysync' % HOME):
     os.makedirs('%s/.pysync' % HOME)
-  
+
 if os.path.isfile('%s/.pysync/pysync' % HOME):
     load_pysync()
 
@@ -353,7 +365,7 @@ if os.path.isfile('%s/.pysync/pysync' % HOME):
 ################################################################################
 usage = """%prog local remote [name]
        %prog [options]
-      
+
 pyrsync version 1.0.0
 Written by Manuel Lopez (2012)
 Web site: http://jmlopez-rod.github.com/pysync
@@ -366,10 +378,10 @@ Add entry with alias:
 
 List entries:
     $ pysync.py
-    
+
 Sync all:
     $ pysync.py all
-        
+
 Sync:
     $ psync.py -s 0 
     or
@@ -378,20 +390,20 @@ desc = """"""
 ver = "%%prog %s" % '0.0.1'
 
 parser = optparse.OptionParser(usage=usage, description=desc, version=ver)
-parser.add_option("-R", "--remove", dest="rm_num", 
+parser.add_option("-R", "--remove", dest="rm_num",
                   default=None, metavar="RM_NUM",
                   help="Remove entry and exit")
-parser.add_option("-r", "--reset", dest="reset_num", 
+parser.add_option("-r", "--reset", dest="reset_num",
                   default=None, metavar="RESET_NUM",
                   help="Reset last sync date on entry and exit")
-parser.add_option("-s", "--sync", dest="pair_num", 
+parser.add_option("-s", "--sync", dest="pair_num",
                   default=None, metavar="PAIR_NUM",
                   help="Sync the entry number or alias")
-parser.add_option("-m", "--mod-alias", dest="mod_alias", 
+parser.add_option("-m", "--mod-alias", dest="mod_alias",
                   default=None, metavar="ALIAS",
                   help="Modify ALIAS of entry (Requires use of -s)")
 # For future version:
-#parser.add_option("-L", "--lock", dest="lock", 
+#parser.add_option("-L", "--lock", dest="lock",
 #                  action='store_true', default=False,
 #                  help="Locks files specified in a list. See -f")
 
@@ -399,7 +411,7 @@ parser.add_option("-m", "--mod-alias", dest="mod_alias",
 
 ###############################################################################
 # CHECKING ARGUMENTS
-###############################################################################    
+###############################################################################
 if len(args) > 3:
     error('pysync.py takes at most 3 arguments. See pysync.py -h')
     exit(1)
@@ -413,7 +425,7 @@ elif len(args) == 1:
     else:
         error('When using only one argument you must write "all"')
         exit(1)
-    
+
 if not options.mod_alias is None:
     if options.pair_num is None:
         error('You forgot to specify the pair number or alias to modify.')
@@ -445,7 +457,7 @@ if not options.reset_num is None:
 if not options.rm_num is None:
     unregister(int(options.rm_num))
     exit(0)
-    
+
 if not options.pair_num is None:
     sync_pair(options.pair_num)
     exit(0)
