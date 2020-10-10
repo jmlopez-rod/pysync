@@ -325,8 +325,22 @@ def unregister(entries, name):
     ])
 
 
+def reset_entry(entries, index):
+    entries[index].date_synced = None
+    return write_json([x.to_dict() for x in entries], SETTINGS)
+
+
 def reset_sync_date(entries, name):
-    pass
+    return eval_iteration(lambda: [
+        True
+        for index, entry in get_entry(entries, name)
+        for choice in should_proceed('\n'.join([
+            cstr(C.yellow, 'Are you sure you want to reset this entry:'),
+            entry_str(index, entry)
+        ]))
+        for _ in (reset_entry(entries, index) if choice else Right(True))
+        for _ in remove_entry_data(entry)
+    ])
 
 
 def entry_str(index, entry):
@@ -373,11 +387,11 @@ def parse_args():
     desc = ''
     ver = "%%prog %s" % '2.0.0'
     parser = optparse.OptionParser(usage=usage, description=desc, version=ver)
-    parser.add_option('-R', '--remove', 
+    parser.add_option('--remove',
         dest='rm_num',
         default=None, metavar='RM_NUM',
         help='Remove entry')
-    parser.add_option('-r', '--reset', 
+    parser.add_option('-r', '--reset',
         dest='reset_num',
         default=None, metavar='RESET_NUM',
         help='Reset last sync date on entry')
@@ -426,7 +440,8 @@ def main():
         return handle(result, 'Unable to remove entry.')
 
     if options.reset_num is not None:
-        return reset_sync_date(entries, options.reset_num)
+        result = reset_sync_date(entries, options.reset_num)
+        return handle(result, 'Unable to reset the entry.')
 
     return print_entries(entries)
 
