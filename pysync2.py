@@ -84,11 +84,15 @@ class Either:
         if self.right:
             yield self.value
 
-    def map(self, fct):
-        return Right(fct(self.value)) if self.right else self
+    def swap(self):
+        self.right = not self.right
+        return self
 
-    def map_left(self, fct):
-        return Left(fct(self.value)) if not self.right else self
+    def flat_map(self, fct):
+        return fct(self.value) if self.right else self
+
+    def flat_map_left(self, fct):
+        return fct(self.value) if not self.right else self
 
 
 class Left(Either):
@@ -251,66 +255,90 @@ def create_pair(local, remote, name):
 
 
 def register(entries, local, remote, name):
-    entry = next((x for x in entries if x.name == name), None)
-    if entry:
-        return error(f'{name} is already registered')
-    result = eval_iteration(lambda: [
+    entry_either = get_entry(entries, name) \
+        .swap() \
+        .flat_map_left(lambda _: Left(Issue(f'{name} is already registered')))
+    return eval_iteration(lambda: [
         True
+        for _ in entry_either
         for new_entry in create_pair(local, remote, name)
         for _ in write_json(
             [x.to_dict() for x in (entries + [new_entry])],
             SETTINGS
         )
     ])
-    if not result.right:
-        return error('Unable to register entry', result.value)
-    return 0
 
 
-def unregister(entries, name):
+def get_entry(entries, name):
     entry = next((x for x in entries if x.name == name), None)
     if not entry:
-        try:
-            index = int(name)
-        except ValueError:
-            return error(f'"{name}" is not a valid entry name')
+        if not name.isdigit():
+            return Left(Issue(f'"{name}" is not a valid entry name'))
+        index = int(name)
         if index < 0 or index >= len(entries):
-            return error(f'{index} is not a valid pair number')
+            return Left(Issue(
+                message=f'{index} is not a valid pair number',
+                data={'total': len(entries)}
+            ))
     else:
         index = entries.index(entry)
     entry = entries[index]
-    print(cstr(C.yellow, 'Are you sure you want to delete this entry:'))
-    print_entry(index, entry)
+    return Right([index, entry])
+
+
+def should_proceed(prompt):
+    print(prompt)
     choice = input(cstr(C.bold, '[yes/no] => ')).lower()
     if choice in ['yes', 'y']:
-        del entries[index]
-        result = write_json([x.to_dict() for x in entries], SETTINGS)
-        if not result.right:
-            return error('Unable to unregister entry', result.value)
-        data = f'{os.environ["HOME"]}/.pysync/{entry.id}.txt'
-        try:
-            os.remove(data)
-        except FileNotFoundError:
-            pass
-        except:
-            return warning(f'Unable to remove {data}. This may need to be done manually.')
+        return Right(True)
     elif choice in ['no', 'n']:
+        return Right(False)
+    return Left(Issue("Please respond with 'yes' or 'no'"))
+
+
+def remove_entry(entries, index):
+    del entries[index]
+    return write_json([x.to_dict() for x in entries], SETTINGS)
+
+
+def remove_entry_data(entry):
+    data = f'{os.environ["HOME"]}/.pysync/{entry.id}.txt'
+    try:
+        os.remove(data)
+    except FileNotFoundError:
         pass
-    else:
-        return error("Please respond with 'yes' or 'no'")
-    return 0
+    except:
+        warning(f'Unable to remove {data}. This may need to be done manually.')
+    return Right(True)
 
 
-def print_entry(index, entry):
+def unregister(entries, name):
+    return eval_iteration(lambda: [
+        True
+        for index, entry in get_entry(entries, name)
+        for choice in should_proceed('\n'.join([
+            cstr(C.yellow, 'Are you sure you want to delete this entry:'),
+            entry_str(index, entry)
+        ]))
+        for _ in (remove_entry(entries, index) if choice else Right(True))
+        for _ in remove_entry_data(entry)
+    ])
+
+
+def reset_sync_date(entries, name):
+    pass
+
+
+def entry_str(index, entry):
     lbr = cstr(C.bold, '[')
     rbr = cstr(C.bold, ']')
-    print(f'{lbr} {index} {rbr}{entry}')
+    return f'{lbr} {index} {rbr}{entry}'
 
 
 def print_entries(entries):
     if entries:
         for i, entry in enumerate(entries):
-            print_entry(i, entry)
+            print(entry_str(i, entry))
     else:
         warning('The list of directories is empty.')
         warning('See "pysync.py -h" to learn how to add an entry.')
@@ -364,10 +392,14 @@ def parse_args():
     return parser.parse_args()
 
 
+def handle(either, err_msg):
+    return 0 if either.right else error(err_msg, either.value)
+
+
 def main():
-    home = os.environ['HOME']
-    if not os.path.isdir(f'{home}/.pysync'):
-        os.makedirs(f'{home}/.pysync')
+    pysync_dir = f'{os.environ["HOME"]}/.pysync'
+    if not os.path.isdir(pysync_dir):
+        os.makedirs(pysync_dir)
 
     (options, args) = parse_args()
     if len(args) > 3:
@@ -386,10 +418,15 @@ def main():
         ]
 
     if len(args) == 3:
-        return register(entries, args[0], args[1], args[2])
+        result = register(entries, args[0], args[1], args[2])
+        return handle(result, 'Unable to register entry')
     
     if options.rm_num is not None:
-        return unregister(entries, options.rm_num)
+        result = unregister(entries, options.rm_num)
+        return handle(result, 'Unable to remove entry.')
+
+    if options.reset_num is not None:
+        return reset_sync_date(entries, options.reset_num)
 
     return print_entries(entries)
 
