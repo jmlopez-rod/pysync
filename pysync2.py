@@ -445,7 +445,7 @@ def write_removals(entry, remote_missing):
             if local_time > date_synced:
                 print_info(num, fname, 'has been modified - will stay')
             else:
-                print_info(num, fname, ' may require', C.yellow)
+                print_info(num, fname, ' may require deletion', C.yellow)
                 removal_list.append(fname)
         else:
             print_info(num, fname, 'may require directory deletion', C.yellow)
