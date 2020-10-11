@@ -419,23 +419,148 @@ def write_exclusions(entry, incoming):
         else:
             print_info(num, fname, 'may be excluded', C.yellow)
             exclude_list.append(fname)
-    with open(f'{PYSYNC}/tmp.txt', 'w') as fp:
+    with open(f'{PYSYNC}/potential_exclusions.txt', 'w') as fp:
         fp.write('\n'.join(exclude_list))
     
     # To find lines common to two files
     # http://www.unix.com/shell-programming-scripting/144741-simple-script-find-common-strings-two-files.html
-    command = f'grep -Fxf {PYSYNC}/tmp.txt {PYSYNC}/{entry.id}.txt > {PYSYNC}/exclude.txt'
+    command = f'grep -Fxf {PYSYNC}/potential_exclusions.txt {PYSYNC}/{entry.id}.txt > {PYSYNC}/exclude.txt'
     os.system(command)
     return Right(True)
 
 
-def sync_entry(index, entry):
+def write_removals(entry, remote_missing):
+    if remote_missing:
+        print_status(f'Analysing {len(remote_missing)} local files to avoid erroneous removal...')
+    removal_list = []
+    total = cstr(C.blue, len(remote_missing))
+    date_synced = datetime(1,1,1)
+    if entry.date_synced:
+        date_synced = datetime.fromtimestamp(entry.date_synced)
+    for index, fname in enumerate(remote_missing):
+        num = f'[{index+1}/{total}]:'
+        file_path = f'{entry.local}{fname}'
+        if os.path.isfile(file_path):
+            local_time = datetime.fromtimestamp(os.path.getmtime(file_path))
+            if local_time > date_synced:
+                print_info(num, fname, 'has been modified - will stay')
+            else:
+                print_info(num, fname, ' may require', C.yellow)
+                removal_list.append(fname)
+        else:
+            print_info(num, fname, 'may require directory deletion', C.yellow)
+            removal_list.append(fname)
+    with open(f'{PYSYNC}/potential_removals.txt', 'w') as fp:
+        fp.write('\n'.join(removal_list))
+    
+    command = f'grep -Fxf {PYSYNC}/potential_removals.txt {PYSYNC}/{entry.id}.txt > {PYSYNC}/remove.txt'
+    os.system(command)
+    return Right(True)
+
+
+def sync_remote_to_local(entry):
+    print_status('Calling rsync: REMOTE to LOCAL (UPDATE/NO DELETION)')
+    cmd = ' '.join(['rsync',
+        '-razuv',
+        '--progress',
+        f'--exclude-from {PYSYNC}/exclude.txt',
+        f'{entry.remote} {entry.local}'
+    ])
+    exit_code = os.system(cmd)
+    if exit_code != 0:
+        return Left(Issue(
+            message='rsync REMOTE -> LOCAL failure',
+            data={'exit_code': exit_code},
+        ))
+    return Right(True)
+
+
+def clean_local_directory(entry):
+    lines = open(f'{PYSYNC}/remove.txt').readlines()
+    if lines:
+        print_status(f'Deleting {len(lines)} local files/directories')
+    index = 0
+    total = cstr(C.blue, len(lines))
+    for f in reversed(lines):
+        index += 1
+        num = f'[{index+1}/{total}]:'
+        fn = f'{entry.local}{f[0:-1]}'
+        if fn[-1] == '/':
+            try:
+                os.rmdir(fn)
+                print_info(num, fn, 'has been deleted')
+            except OSError:
+                print_info(num, fn, 'failed to deleted', C.red)
+        else:
+            try:
+                os.remove(fn)
+                print_info(num, fn, 'has been deleted')
+            except OSError:
+                print_info(num, fn, 'failed to deleted', C.red)
+    return Right(True)
+
+
+def sync_local_to_remote(entry):
+    print_status('Calling rsync: LOCAL to REMOTE (DELETION)')
+    cmd = ' '.join(['rsync',
+        '-razuv',
+        '--progress',
+        '--delete',
+        f'{entry.local} {entry.remote}'
+    ])
+    exit_code = os.system(cmd)
+    if exit_code != 0:
+        return Left(Issue(
+            message='rsync LOCAL -> REMOTE failure',
+            data={'exit_code': exit_code},
+        ))
+    return Right(True)
+
+
+def record_sync(entries, index):
+    now = datetime.now()
+    print_status(f'Saving sync date: {now.strftime("%b/%d/%Y - %H:%M:%S")}')
+    entries[index].date_synced = int(datetime.timestamp(now))
+    return write_json([x.to_dict() for x in entries], SETTINGS) 
+
+
+def take_snapshot(entry):
+    print_status(f'Creating snapshot of {entry.local}')
+    cmd = ''.join([
+        f'cd {entry.local};',
+        # Make find show slash after directories
+        #  http://unix.stackexchange.com/a/4857
+        'find . -type d -exec sh -c \'printf "%%s/\n" "$0"\' {} \; -or -print',
+        # Need to delete ./ from the path:
+        #  http://stackoverflow.com/a/1571652/788553
+        f' | sed s:"./":: > {PYSYNC}/{entry.id}.txt'
+    ])
+    exit_code = os.system(cmd)
+    if exit_code != 0:
+        return Left(Issue(
+            message='failure storing snapshot',
+            data={
+                'exit_code': exit_code,
+                'cmd': cmd,
+            },
+        ))
+    return Right(True)
+
+
+def sync_entry(index, entries):
+    entry = entries[index]
     if ANSWER_YES:
         print(entry_str(index, entry))
     return eval_iteration(lambda: [
         True
         for incoming, remote_missing in fetch_incoming(entry)
         for _ in write_exclusions(entry, incoming)
+        for _ in write_removals(entry, remote_missing)
+        for _ in sync_remote_to_local(entry)
+        for _ in clean_local_directory(entry)
+        for _ in sync_local_to_remote(entry)
+        for _ in record_sync(entries, index)
+        for _ in take_snapshot(entry)
     ])
 
 
@@ -504,7 +629,7 @@ def sync(entries, name):
             cstr(C.yellow, 'Are you sure you want to sync the entry?'),
             entry_str(index, entry)
         ]))
-        for _ in (sync_entry(index, entry) if choice else Right(True))
+        for _ in (sync_entry(index, entries) if choice else Right(True))
     ])
 
 
