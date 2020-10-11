@@ -254,19 +254,20 @@ def create_pair(local, remote, name):
     return Right(Pair(name, local, remote))
 
 
-def register(entries, local, remote, name):
-    entry_either = get_entry(entries, name) \
-        .swap() \
-        .flat_map_left(lambda _: Left(Issue(f'{name} is already registered')))
-    return eval_iteration(lambda: [
-        True
-        for _ in entry_either
-        for new_entry in create_pair(local, remote, name)
-        for _ in write_json(
-            [x.to_dict() for x in (entries + [new_entry])],
-            SETTINGS
-        )
-    ])
+def entry_str(index, entry):
+    lbr = cstr(C.bold, '[')
+    rbr = cstr(C.bold, ']')
+    return f'{lbr} {index} {rbr}{entry}'
+
+
+def print_entries(entries):
+    if entries:
+        for i, entry in enumerate(entries):
+            print(entry_str(i, entry))
+    else:
+        warning('The list of directories is empty.')
+        warning('See "pysync.py -h" to learn how to add an entry.')
+    return 0
 
 
 def get_entry(entries, name):
@@ -312,6 +313,31 @@ def remove_entry_data(entry):
     return Right(True)
 
 
+def reset_entry(entries, index):
+    entries[index].date_synced = None
+    return write_json([x.to_dict() for x in entries], SETTINGS)
+
+
+def update_entry_name(entries, index, name):
+    entries[index].name = name
+    return write_json([x.to_dict() for x in entries], SETTINGS)
+
+
+def register(entries, local, remote, name):
+    entry_either = get_entry(entries, name) \
+        .swap() \
+        .flat_map_left(lambda _: Left(Issue(f'{name} is already registered')))
+    return eval_iteration(lambda: [
+        True
+        for _ in entry_either
+        for new_entry in create_pair(local, remote, name)
+        for _ in write_json(
+            [x.to_dict() for x in (entries + [new_entry])],
+            SETTINGS
+        )
+    ])
+
+
 def unregister(entries, name):
     return eval_iteration(lambda: [
         True
@@ -325,11 +351,6 @@ def unregister(entries, name):
     ])
 
 
-def reset_entry(entries, index):
-    entries[index].date_synced = None
-    return write_json([x.to_dict() for x in entries], SETTINGS)
-
-
 def reset_sync_date(entries, name):
     return eval_iteration(lambda: [
         True
@@ -341,11 +362,6 @@ def reset_sync_date(entries, name):
         for _ in (reset_entry(entries, index) if choice else Right(True))
         for _ in remove_entry_data(entry)
     ])
-
-
-def update_entry_name(entries, index, name):
-    entries[index].name = name
-    return write_json([x.to_dict() for x in entries], SETTINGS)
 
 
 def update_name(entries, new_name, name):
@@ -362,22 +378,6 @@ def update_name(entries, new_name, name):
         ]))
         for _ in (update_entry_name(entries, index, new_name) if choice else Right(True))
     ])
-
-
-def entry_str(index, entry):
-    lbr = cstr(C.bold, '[')
-    rbr = cstr(C.bold, ']')
-    return f'{lbr} {index} {rbr}{entry}'
-
-
-def print_entries(entries):
-    if entries:
-        for i, entry in enumerate(entries):
-            print(entry_str(i, entry))
-    else:
-        warning('The list of directories is empty.')
-        warning('See "pysync.py -h" to learn how to add an entry.')
-    return 0
 
 
 def parse_args():
