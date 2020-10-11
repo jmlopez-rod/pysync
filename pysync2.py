@@ -17,13 +17,14 @@ import inspect
 import socket
 import optparse
 from datetime import datetime
-from subprocess import Popen, PIPE
+from subprocess import Popen, PIPE, STDOUT
 from collections import OrderedDict
 
 
 COLORS = True
 ANSWER_YES = False
-SETTINGS = f'{os.environ["HOME"]}/.pysync/pysync.json'
+PYSYNC = f'{os.environ["HOME"]}/.pysync'
+SETTINGS = f'{PYSYNC}/pysync.json'
 
 
 class BreakIteration(Exception):
@@ -252,7 +253,9 @@ def create_pair(local, remote, name):
             ))
     if remote[-1] != '/':
         remote += '/'
-    return Right(Pair(name, local, remote))
+    pair = Pair(name, local, remote)
+    open(f'{PYSYNC}/{pair.id}.txt', 'w').close()
+    return Right(pair)
 
 
 def entry_str(index, entry):
@@ -326,8 +329,114 @@ def update_entry_name(entries, index, name):
     return write_json([x.to_dict() for x in entries], SETTINGS)
 
 
-def sync_entry(entry):
+def print_status(status):
+    print(f'{cstr(C.bd_blue, "STATUS:")} {cstr(C.blue, status)}')
+
+
+def eval_cmd(cmd):
+    process = Popen(
+        cmd,
+        shell=True,
+        universal_newlines=True,
+        executable="/bin/bash",
+        stdout=PIPE,
+        stderr=STDOUT
+    )
+    out, _ = process.communicate()
+    if process.returncode == 0:
+        return Right(out.strip())
+    return Left(Issue(
+        message='command returned a non zero exit code',
+        data={'cmd': cmd, 'output': out}
+    ))
+
+
+def parse_incoming_output(out):
+    temp_files = out.split('\n')[1:-3]
+    incoming = []
+    remote_missing = []
+    for line in temp_files:
+        items = line.split('<>')
+        if len(items) > 1:
+            fname, time = items
+            incoming.append((fname, datetime.strptime(time, '%Y/%m/%d-%H:%M:%S')))
+        else:
+            action = line.split(' ', 1)
+            if len(action) > 1:
+                remote_missing.append(action[1])
+    return Right((incoming, remote_missing))
+
+
+def fetch_incoming(entry):
+    print_status('Receiving list of incoming files...')
+    cmd = ' '.join(['rsync',
+        '-navz',
+        '--delete',
+        '--exclude .DS_Store',
+        '--out-format="%n<>%M"',
+        f'{entry.remote} {entry.local}'
+    ])
+    return eval_iteration(lambda: [
+        (incoming, remote_missing)
+        for out in eval_cmd(cmd)
+        for incoming, remote_missing in parse_incoming_output(out)
+    ])
+
+
+def print_info(index, fpath, msg, color=None):
+    txt = cstr(color, msg) if color else msg
+    print(f'{index} {cstr(C.cyan, fpath)} {txt}')
+
+
+def write_exclusions(entry, incoming):
+    if incoming:
+        print_status(f'Analysing {len(incoming)} incoming files to avoid erroneous overwriting...')
+    exclude_list = []
+    total = cstr(C.blue, len(incoming))
+    date_synced = datetime(1,1,1)
+    if entry.date_synced:
+        date_synced = datetime.fromtimestamp(entry.date_synced)
+    for index, in_file in enumerate(incoming):
+        fname = in_file[0]
+        num = f'[{index+1}/{total}]:'
+        file_path = f'{entry.local}{fname}'
+        if os.path.isfile(file_path):
+            local_time = datetime.fromtimestamp(os.path.getmtime(file_path))
+            if local_time > date_synced:
+                if in_file[1] > date_synced:
+                    (dir_name, file_name) = os.path.split(fname)
+                    host = socket.gethostname()
+                    time = local_time.strftime("%Y_%m_%d-%H_%M_%S")
+                    new_name = f'{dir_name}/({host})({time}){file_name}'
+                    os.rename(file_path, f'{entry.local}{new_name}')
+                    print_info(num, fname, f'renamed to {new_name}', C.yellow)
+                else:
+                    print_info(num, fname, 'has been modified locally', C.red)
+            else:
+                print_info(num, fname, 'has not been modified')
+        elif os.path.isdir(file_path):
+            print_info(num, fname, 'is an existing directory')
+        else:
+            print_info(num, fname, 'may be excluded', C.yellow)
+            exclude_list.append(fname)
+    with open(f'{PYSYNC}/tmp.txt', 'w') as fp:
+        fp.write('\n'.join(exclude_list))
+    
+    # To find lines common to two files
+    # http://www.unix.com/shell-programming-scripting/144741-simple-script-find-common-strings-two-files.html
+    command = f'grep -Fxf {PYSYNC}/tmp.txt {PYSYNC}/{entry.id}.txt > {PYSYNC}/exclude.txt'
+    os.system(command)
     return Right(True)
+
+
+def sync_entry(index, entry):
+    if ANSWER_YES:
+        print(entry_str(index, entry))
+    return eval_iteration(lambda: [
+        True
+        for incoming, remote_missing in fetch_incoming(entry)
+        for _ in write_exclusions(entry, incoming)
+    ])
 
 
 def register(entries, local, remote, name):
@@ -395,7 +504,7 @@ def sync(entries, name):
             cstr(C.yellow, 'Are you sure you want to sync the entry?'),
             entry_str(index, entry)
         ]))
-        for _ in (sync_entry(entry) if choice else Right(True))
+        for _ in (sync_entry(index, entry) if choice else Right(True))
     ])
 
 
