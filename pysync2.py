@@ -323,6 +323,10 @@ def update_entry_name(entries, index, name):
     return write_json([x.to_dict() for x in entries], SETTINGS)
 
 
+def sync_entry(entry):
+    return Right(True)
+
+
 def register(entries, local, remote, name):
     entry_either = get_entry(entries, name) \
         .swap() \
@@ -377,6 +381,18 @@ def update_name(entries, new_name, name):
             entry_str(index, entry)
         ]))
         for _ in (update_entry_name(entries, index, new_name) if choice else Right(True))
+    ])
+
+
+def sync(entries, name):
+    return eval_iteration(lambda: [
+        True
+        for index, entry in get_entry(entries, name)
+        for choice in should_proceed('\n'.join([
+            cstr(C.yellow, 'Are you sure you want to sync the entry?'),
+            entry_str(index, entry)
+        ]))
+        for _ in (sync_entry(entry) if choice else Right(True))
     ])
 
 
@@ -447,6 +463,10 @@ def main():
             Pair(x['name'], x['local'], x['remote'], x['date_created'], x['date_synced'])
             for x in result.value
         ]
+
+    if len(args) == 1:
+        result = sync(entries, args[0])
+        return handle(result, 'Unable to sync entry')
 
     if len(args) == 3:
         result = register(entries, args[0], args[1], args[2])
