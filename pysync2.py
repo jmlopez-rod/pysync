@@ -233,9 +233,13 @@ def create_pair(local, remote, name):
             message='local directory does not exist',
             data={'local': local},
         ))
+    local = os.path.abspath(local)
     if local[-1] != '/':
         local += '/'
-    if not os.path.isdir(remote):
+
+    if os.path.isdir(remote):
+        remote = os.path.abspath(remote)
+    else:
         tmp = remote.split(':')
         if len(tmp) == 1:
             return Left(Issue(
