@@ -407,7 +407,7 @@ def write_exclusions(entry, incoming):
                     (dir_name, file_name) = os.path.split(fname)
                     host = socket.gethostname()
                     time = local_time.strftime("%Y_%m_%d-%H_%M_%S")
-                    new_name = f'{dir_name}/({host})({time}){file_name}'
+                    new_name = f'{dir_name}/{file_name}-{host}-{time}'
                     os.rename(file_path, f'{entry.local}{new_name}')
                     print_info(num, fname, f'renamed to {new_name}', C.yellow)
                 else:
