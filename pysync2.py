@@ -531,14 +531,15 @@ def record_sync(entries, index):
 def take_snapshot(entry):
     print_status(f'Creating snapshot of {entry.local}')
     cmd = ''.join([
-        f'cd {entry.local};',
+        f'cd {entry.local}; ',
         # Make find show slash after directories
         #  http://unix.stackexchange.com/a/4857
-        'find . -type d -exec sh -c \'printf "%%s/\n" "$0"\' {} \; -or -print',
+        'find . -type d -exec sh -c \'printf "%s/\\n" "$0"\' {} \; -or -print',
         # Need to delete ./ from the path:
         #  http://stackoverflow.com/a/1571652/788553
         f' | sed s:"./":: > {PYSYNC}/{entry.id}.txt'
     ])
+    print(cmd)
     exit_code = os.system(cmd)
     if exit_code != 0:
         return Left(Issue(
