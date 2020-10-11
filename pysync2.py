@@ -22,6 +22,7 @@ from collections import OrderedDict
 
 
 COLORS = True
+ANSWER_YES = False
 SETTINGS = f'{os.environ["HOME"]}/.pysync/pysync.json'
 
 
@@ -288,6 +289,8 @@ def get_entry(entries, name):
 
 
 def should_proceed(prompt):
+    if ANSWER_YES:
+        return Right(True)
     print(prompt)
     choice = input(cstr(C.bold, '[yes/no] => ')).lower()
     if choice in ['yes', 'y']:
@@ -330,7 +333,7 @@ def sync_entry(entry):
 def register(entries, local, remote, name):
     entry_either = get_entry(entries, name) \
         .swap() \
-        .flat_map_left(lambda _: Left(Issue(f'{name} is already registered')))
+        .flat_map_left(lambda _: Left(Issue(f'{name} already registered')))
     return eval_iteration(lambda: [
         True
         for _ in entry_either
@@ -436,6 +439,16 @@ def parse_args():
         dest='new_name',
         default=None, metavar='NAME',
         help='Modify NAME of entry (Requires one arg [current name])')
+    parser.add_option('--no-color',
+        dest='no_color',
+        action="store_true",
+        default=False,
+        help='Print messages without color')
+    parser.add_option('-y',
+        dest='answer_yes',
+        action="store_true",
+        default=False,
+        help='Skips confirmation prompt (for batch jobs)')
     return parser.parse_args()
 
 
@@ -444,11 +457,18 @@ def handle(either, err_msg):
 
 
 def main():
+    global COLORS, ANSWER_YES
     pysync_dir = f'{os.environ["HOME"]}/.pysync'
     if not os.path.isdir(pysync_dir):
         os.makedirs(pysync_dir)
 
     (options, args) = parse_args()
+    if options.no_color:
+        COLORS = False
+
+    if options.answer_yes:
+        ANSWER_YES = True
+
     if len(args) > 3:
         return error('pysync.py takes at most 3 arguments. See pysync.py -h')
     if len(args) == 2:
@@ -463,10 +483,6 @@ def main():
             Pair(x['name'], x['local'], x['remote'], x['date_created'], x['date_synced'])
             for x in result.value
         ]
-
-    if len(args) == 1:
-        result = sync(entries, args[0])
-        return handle(result, 'Unable to sync entry')
 
     if len(args) == 3:
         result = register(entries, args[0], args[1], args[2])
@@ -485,6 +501,10 @@ def main():
             return error('Usage: pysync.py -n [new_name] current_name')
         result = update_name(entries, options.new_name, args[0])
         return handle(result, 'Unable to update entry name.')
+
+    if len(args) == 1:
+        result = sync(entries, args[0])
+        return handle(result, 'Unable to sync entry')
 
     return print_entries(entries)
 
