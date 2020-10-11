@@ -343,6 +343,27 @@ def reset_sync_date(entries, name):
     ])
 
 
+def update_entry_name(entries, index, name):
+    entries[index].name = name
+    return write_json([x.to_dict() for x in entries], SETTINGS)
+
+
+def update_name(entries, new_name, name):
+    new_entry_either = get_entry(entries, new_name) \
+        .swap() \
+        .flat_map_left(lambda _: Left(Issue(f'{new_name} is already exists')))
+    return eval_iteration(lambda: [
+        True
+        for _ in new_entry_either
+        for index, entry in get_entry(entries, name)
+        for choice in should_proceed('\n'.join([
+            cstr(C.yellow, 'Are you sure you want to update the entry name?'),
+            entry_str(index, entry)
+        ]))
+        for _ in (update_entry_name(entries, index, new_name) if choice else Right(True))
+    ])
+
+
 def entry_str(index, entry):
     lbr = cstr(C.bold, '[')
     rbr = cstr(C.bold, ']')
@@ -387,22 +408,18 @@ def parse_args():
     desc = ''
     ver = "%%prog %s" % '2.0.0'
     parser = optparse.OptionParser(usage=usage, description=desc, version=ver)
-    parser.add_option('--remove',
+    parser.add_option('-d', '--delete',
         dest='rm_num',
         default=None, metavar='RM_NUM',
-        help='Remove entry')
+        help='Delete entry')
     parser.add_option('-r', '--reset',
         dest='reset_num',
         default=None, metavar='RESET_NUM',
         help='Reset last sync date on entry')
-    parser.add_option('-s', '--sync',
-        dest='pair_num',
-        default=None, metavar='PAIR_NUM',
-        help='Sync the entry number or alias')
-    parser.add_option('-m', '--mod-alias',
-        dest='mod_alias',
-        default=None, metavar='ALIAS',
-        help='Modify ALIAS of entry (Requires use of -s)')
+    parser.add_option('-n', '--name',
+        dest='new_name',
+        default=None, metavar='NAME',
+        help='Modify NAME of entry (Requires one arg [current name])')
     return parser.parse_args()
 
 
@@ -442,6 +459,12 @@ def main():
     if options.reset_num is not None:
         result = reset_sync_date(entries, options.reset_num)
         return handle(result, 'Unable to reset the entry.')
+
+    if options.new_name:
+        if len(args) != 1:
+            return error('Usage: pysync.py -n [new_name] current_name')
+        result = update_name(entries, options.new_name, args[0])
+        return handle(result, 'Unable to update entry name.')
 
     return print_entries(entries)
 
