@@ -20,11 +20,15 @@ from datetime import datetime
 from subprocess import Popen, PIPE, STDOUT
 from collections import OrderedDict
 
-
+VERSION = '2.0.0'
 COLORS = True
 ANSWER_YES = False
 PYSYNC = f'{os.environ["HOME"]}/.pysync'
 SETTINGS = f'{PYSYNC}/pysync.json'
+try:
+    PROG = os.path.basename(__file__)
+except:
+    PROG = 'pysync.py'
 
 
 class BreakIteration(Exception):
@@ -274,7 +278,7 @@ def print_entries(entries):
             print(entry_str(i, entry))
     else:
         warning('The list of directories is empty.')
-        warning('See "pysync.py -h" to learn how to add an entry.')
+        warning(f'See "{PROG} -h" to learn how to add an entry.')
     return 0
 
 
@@ -639,7 +643,8 @@ def sync(entries, name):
 
 
 def parse_args():
-    usage = inspect.cleandoc("""%prog local remote name
+    usage = inspect.cleandoc("""
+        %prog local remote name
         %prog [options]
 
         http://jmlopez-rod.github.com/pysync
@@ -650,21 +655,15 @@ def parse_args():
         List entries:
             $ %prog
 
-        Sync all:
-            $ %prog all
-
         Sync:
-            $ %prog 0 
-            or
+            $ %prog 0
+            
+            or by name:
             $ %prog dir
-            or
-            $ %prog -s 0
-            or
-            $ %prog -s dir
         """
     )
     desc = ''
-    ver = "%%prog %s" % '2.0.0'
+    ver = f'%prog {VERSION}'
     parser = optparse.OptionParser(usage=usage, description=desc, version=ver)
     parser.add_option('-d', '--delete',
         dest='rm_num',
@@ -709,9 +708,9 @@ def main():
         ANSWER_YES = True
 
     if len(args) > 3:
-        return error('pysync.py takes at most 3 arguments. See pysync.py -h')
+        return error(f'{PROG} takes at most 3 arguments. See {PROG} -h')
     if len(args) == 2:
-        return error('Provide an alias for the entry. See pysync.py -h')
+        return error(f'Provide an alias for the entry. See {PROG} -h')
     
     entries = []
     if os.path.isfile(SETTINGS):
@@ -737,7 +736,7 @@ def main():
 
     if options.new_name:
         if len(args) != 1:
-            return error('Usage: pysync.py -n [new_name] current_name')
+            return error(f'Usage: {PROG} -n [new_name] current_name')
         result = update_name(entries, options.new_name, args[0])
         return handle(result, 'Unable to update entry name.')
 
