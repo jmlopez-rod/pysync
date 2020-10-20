@@ -217,7 +217,7 @@ class Pair:
         name = cstr(C.green, self.name)
         local = cstr(C.cyan, self.local)
         remote = cstr(C.magenta, self.remote)
-        sync_date = cstr(C.red, '     Never Synced     ')
+        sync_date = cstr(C.gray, '     Never Synced     ')
         if self.date_synced:
             date_fmt = '%b/%d/%Y - %H:%M:%S'
             sync_date = datetime \
@@ -587,7 +587,7 @@ def register(entries, local, remote, name):
         for _ in entry_either
         for new_entry in create_pair(local, remote, name)
         for _ in write_json(
-            [x.to_dict() for x in (entries + [new_entry])],
+            [x.to_dict() for x in entries + [new_entry]],
             SETTINGS
         )
         for _ in print_msg(cstr(
@@ -602,7 +602,7 @@ def unregister(entries, name):
         True
         for index, entry in get_entry(entries, name)
         for choice in should_proceed('\n'.join([
-            cstr(C.yellow, 'Are you sure you want to delete this entry:'),
+            cstr(C.red, 'Are you sure you want to delete this entry:'),
             entry_str(index, entry)
         ]))
         for _ in (remove_entry(entries, index) if choice else Right(True))
