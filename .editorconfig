@@ -1,0 +1,19 @@
+### TOP MOST EDITORCONFIG FILE ###
+root = true
+
+### DEFAULT GLOBAL SETTINGS FOR ALL FILES ###
+[*]
+charset = utf-8
+trim_trailing_whitespace = true
+insert_final_newline = true
+end_of_line = lf
+indent_style = space
+indent_size = 2
+
+### MAKEFILE ###
+[Makefile]
+indent_style = tab
+
+### PYTHON ###
+[*.py]
+indent_size = 4
