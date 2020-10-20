@@ -222,7 +222,7 @@ class Pair:
             date_fmt = '%b/%d/%Y - %H:%M:%S'
             sync_date = datetime \
                 .fromtimestamp(self.date_synced) \
-                .strftime(date_fmt) 
+                .strftime(date_fmt)
             sync_date = cstr(C.gray, sync_date)
         return ''.join([
             f"{lbr} {sync_date} {rbr}"
@@ -434,7 +434,7 @@ def write_exclusions(entry, incoming):
             exclude_list.append(fname)
     with open(f'{PYSYNC}/potential_exclusions.txt', 'w') as fp:
         fp.write('\n'.join(exclude_list))
-    
+
     # To find lines common to two files
     # http://www.unix.com/shell-programming-scripting/144741-simple-script-find-common-strings-two-files.html
     command = f'grep -Fxf {PYSYNC}/potential_exclusions.txt {PYSYNC}/{entry.id}.txt > {PYSYNC}/exclude.txt'
@@ -465,7 +465,7 @@ def write_removals(entry, remote_missing):
             removal_list.append(fname)
     with open(f'{PYSYNC}/potential_removals.txt', 'w') as fp:
         fp.write('\n'.join(removal_list))
-    
+
     command = f'grep -Fxf {PYSYNC}/potential_removals.txt {PYSYNC}/{entry.id}.txt > {PYSYNC}/remove.txt'
     os.system(command)
     return Right(True)
@@ -534,7 +534,7 @@ def record_sync(entries, index):
     now = datetime.now()
     print_status(f'Saving sync date: {now.strftime("%b/%d/%Y - %H:%M:%S")}')
     entries[index].date_synced = int(datetime.timestamp(now))
-    return write_json([x.to_dict() for x in entries], SETTINGS) 
+    return write_json([x.to_dict() for x in entries], SETTINGS)
 
 
 def take_snapshot(entry):
@@ -725,7 +725,7 @@ def main():
         return error(f'{PROG} takes at most 3 arguments. See {PROG} -h')
     if len(args) == 2:
         return error(f'Provide an alias for the entry. See {PROG} -h')
-    
+
     entries = []
     if os.path.isfile(SETTINGS):
         result = read_json(SETTINGS)
@@ -744,7 +744,7 @@ def main():
         for entry in entries:
             print(entry.name)
         return 0
-    
+
     if options.rm_num is not None:
         result = unregister(entries, options.rm_num)
         return handle(result, 'Unable to remove entry.')
