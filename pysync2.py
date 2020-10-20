@@ -657,7 +657,7 @@ def parse_args():
 
         Sync:
             $ %prog 0
-            
+
             or by name:
             $ %prog dir
         """
@@ -687,6 +687,11 @@ def parse_args():
         action="store_true",
         default=False,
         help='Skips confirmation prompt (for batch jobs)')
+    parser.add_option('-l',
+        dest='list_entries',
+        action="store_true",
+        default=False,
+        help='List the available entries (useful for auto complete)')
     return parser.parse_args()
 
 
@@ -725,6 +730,11 @@ def main():
     if len(args) == 3:
         result = register(entries, args[0], args[1], args[2])
         return handle(result, 'Unable to register entry')
+
+    if options.list_entries:
+        for entry in entries:
+            print(entry.name)
+        return 0
     
     if options.rm_num is not None:
         result = unregister(entries, options.rm_num)
