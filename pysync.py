@@ -10,7 +10,6 @@ License: http://creativecommons.org/licenses/by-sa/3.0/
 """
 import os
 import sys
-import time
 import json
 import traceback
 import inspect
@@ -494,22 +493,22 @@ def clean_local_directory(entry):
         print_status(f'Deleting {len(lines)} local files/directories')
     index = 0
     total = cstr(C.blue, len(lines))
-    for f in reversed(lines):
+    for line in reversed(lines):
         index += 1
         num = f'[{index+1}/{total}]:'
-        fn = f'{entry.local}{f[0:-1]}'
-        if fn[-1] == '/':
+        fname = f'{entry.local}{line[0:-1]}'
+        if fname[-1] == '/':
             try:
-                os.rmdir(fn)
-                print_info(num, fn, 'has been deleted')
+                os.rmdir(fname)
+                print_info(num, fname, 'has been deleted')
             except OSError:
-                print_info(num, fn, 'failed to deleted', C.red)
+                print_info(num, fname, 'failed to deleted', C.red)
         else:
             try:
-                os.remove(fn)
-                print_info(num, fn, 'has been deleted')
+                os.remove(fname)
+                print_info(num, fname, 'has been deleted')
             except OSError:
-                print_info(num, fn, 'failed to deleted', C.red)
+                print_info(num, fname, 'failed to deleted', C.red)
     return Right(True)
 
 
