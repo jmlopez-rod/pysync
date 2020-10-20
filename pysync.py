@@ -396,6 +396,11 @@ def print_info(index, fpath, msg, color=None):
     print(f'{index} {cstr(C.cyan, fpath)} {txt}')
 
 
+def print_msg(msg):
+    print(msg)
+    return Right(0)
+
+
 def write_exclusions(entry, incoming):
     if incoming:
         print_status(f'Analysing {len(incoming)} incoming files to avoid erroneous overwriting...')
@@ -585,6 +590,10 @@ def register(entries, local, remote, name):
             [x.to_dict() for x in (entries + [new_entry])],
             SETTINGS
         )
+        for _ in print_msg(cstr(
+            C.cyan,
+            f'Registration successful. Run `pysync.py {name}` to sync entry.'
+        ))
     ])
 
 
