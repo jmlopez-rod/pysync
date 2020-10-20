@@ -260,7 +260,9 @@ good-names=i,
            j,
            k,
            ex,
+           id,
            Run,
+           C,
            _
 
 # Good variable names regexes, separated by a comma. If names match any regex,
@@ -589,5 +591,4 @@ preferred-modules=
 
 # Exceptions that will emit a warning when being caught. Defaults to
 # "BaseException, Exception".
-overgeneral-exceptions=BaseException,
-                       Exception
+overgeneral-exceptions=BaseException

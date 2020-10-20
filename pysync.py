@@ -26,7 +26,7 @@ PYSYNC = f'{os.environ["HOME"]}/.pysync'
 SETTINGS = f'{PYSYNC}/pysync.json'
 try:
     PROG = os.path.basename(__file__)
-except:
+except Exception:
     PROG = 'pysync.py'
 
 
@@ -305,7 +305,7 @@ def should_proceed(prompt):
     choice = input(cstr(C.bold, '[yes/no] => ')).lower()
     if choice in ['yes', 'y']:
         return Right(True)
-    elif choice in ['no', 'n']:
+    if choice in ['no', 'n']:
         return Right(False)
     return Left(Issue("Please respond with 'yes' or 'no'"))
 
@@ -321,7 +321,7 @@ def remove_entry_data(entry):
         os.remove(data)
     except FileNotFoundError:
         pass
-    except:
+    except Exception:
         warning(f'Unable to remove {data}. This may need to be done manually.')
     return Right(True)
 
@@ -431,12 +431,12 @@ def write_exclusions(entry, incoming):
         else:
             print_info(num, fname, 'may be excluded', C.yellow)
             exclude_list.append(fname)
-    with open(f'{PYSYNC}/potential_exclusions.txt', 'w') as fp:
-        fp.write('\n'.join(exclude_list))
+    with open(f'{PYSYNC}/potential_exclusions.txt', 'w') as fpointer:
+        fpointer.write('\n'.join(exclude_list))
 
     # To find lines common to two files
     # http://www.unix.com/shell-programming-scripting/144741-simple-script-find-common-strings-two-files.html
-    command = f'grep -Fxf {PYSYNC}/potential_exclusions.txt {PYSYNC}/{entry.id}.txt > {PYSYNC}/exclude.txt'
+    command = f'grep -Fxf {PYSYNC}/potential_exclusions.txt {PYSYNC}/{entry.id}.txt > {PYSYNC}/exclude.txt'  # pylint: disable=line-too-long
     os.system(command)
     return Right(True)
 
@@ -462,10 +462,10 @@ def write_removals(entry, remote_missing):
         else:
             print_info(num, fname, 'may require directory deletion', C.yellow)
             removal_list.append(fname)
-    with open(f'{PYSYNC}/potential_removals.txt', 'w') as fp:
-        fp.write('\n'.join(removal_list))
+    with open(f'{PYSYNC}/potential_removals.txt', 'w') as fpointer:
+        fpointer.write('\n'.join(removal_list))
 
-    command = f'grep -Fxf {PYSYNC}/potential_removals.txt {PYSYNC}/{entry.id}.txt > {PYSYNC}/remove.txt'
+    command = f'grep -Fxf {PYSYNC}/potential_removals.txt {PYSYNC}/{entry.id}.txt > {PYSYNC}/remove.txt'  # pylint: disable=line-too-long
     os.system(command)
     return Right(True)
 
