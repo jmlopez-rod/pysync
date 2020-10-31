@@ -1,7 +1,7 @@
 # pysync
 
 `pysync` is a python script designed to work in a similar fashion as [DropBox]
-using [rsync] as the main process to transfer files. 
+using [rsync] as the main process to transfer files.
 
 ## WARNING:
 
@@ -10,7 +10,7 @@ may result in the potential loss of data. Use at your own risk.
 
 ## Requirements
 
-To use this script your system needs to have `rsync`, `grep`, `ssh` and 
+To use this script your system needs to have `rsync`, `grep`, `ssh` and
 `python3` installed.
 
 ## Basic use
@@ -35,9 +35,9 @@ To check the list of recorded directories call `pysync` again with no arguments
 
     jmlopez$ pysync.py
     [ 0 ][      Never Synced     ][dir]: /Users/username/Dir/ <==> jmlopez@server:/home/username/dir/
-    jmlopez$ 
+    jmlopez$
 
-You can add more entries by repeating the steps above. Each entry that you 
+You can add more entries by repeating the steps above. Each entry that you
 add will be listed when you call `pysync` without any arguments.
 
 To sync an entry we can use the index or the name that was given to the entry.
@@ -65,3 +65,5 @@ reading the manual `man complete`.
 
 [DropBox]: https://www.dropbox.com/
 [rsync]: http://rsync.samba.org/
+
+testing
