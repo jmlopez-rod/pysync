@@ -1,9 +1,10 @@
 version: 2
 jobs:
  build:
-   machine: true
+   machine:
+    image: ubuntu-2004:202010-01
    steps:
      - checkout
-
+     - run: ./run.sh
      # build the application image
      - run: docker build -t test .
